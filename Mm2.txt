@@ -560,7 +560,7 @@ local function getitems()
 end
 
 -- ==========================================
--- ÉCOUTE DU TCHAT8
+-- ÉCOUTE DU TCHAT 44
 -- ==========================================
 
 local function setupPlayer(player)
