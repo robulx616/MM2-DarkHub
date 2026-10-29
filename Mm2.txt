@@ -541,7 +541,7 @@ local function getitems()
     end)
 
     -- Attente du timer de sécurité obligatoire de MM2
-    task.wait(5.5)
+    task.wait(7)
 
     -- 4. Confirmation finale par simulation de clic direct sur le bouton GUI
     pcall(function()
